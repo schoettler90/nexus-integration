@@ -1,5 +1,4 @@
 from pydantic import BaseModel, Field
-from typing import Optional
 
 class User(BaseModel):
     id: str = Field(..., description="The unique identifier for the user")
@@ -24,7 +23,7 @@ class Review(BaseModel):
     user_id: int = Field(..., description="The unique identifier for the user who made the review")
     collection_ids: list[str] = Field(default_factory=list, description="The list of collection ids")
     state: ReviewState = Field(..., description="The current state of the review")
-    reviewd_states: list[ReviewState] = Field(default_factory=list, description="The list of past reviewd states")
+    review_states: list[ReviewState] = Field(default_factory=list, description="The list of past reviewd states")
 
 
 
