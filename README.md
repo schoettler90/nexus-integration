@@ -42,35 +42,86 @@ Using dnf (Fedora):
 sudo dnf install python3.13
 ```
 
+### Create and Activate Virtual Environment
+
+#### Windows (PowerShell)
+
+1. Create a virtual environment:
+   ```powershell
+   python -m venv .venv
+   ```
+
+2. Activate the virtual environment:
+   ```powershell
+   .\.venv\Scripts\Activate.ps1
+   ```
+   
+   If you encounter an execution policy error, run:
+   ```powershell
+   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+   ```
+
+3. Verify Python version in the virtual environment:
+   ```powershell
+   python --version
+   ```
+
+#### macOS
+
+1. Create a virtual environment:
+   ```bash
+   python3.13 -m venv .venv
+   ```
+
+2. Activate the virtual environment:
+   ```bash
+   source .venv/bin/activate
+   ```
+
+3. Verify Python version in the virtual environment:
+   ```bash
+   python --version
+   ```
+
+#### Linux
+
+1. Create a virtual environment:
+   ```bash
+   python3.13 -m venv .venv
+   ```
+
+2. Activate the virtual environment:
+   ```bash
+   source .venv/bin/activate
+   ```
+
+3. Verify Python version in the virtual environment:
+   ```bash
+   python --version
+   ```
+
 ### Install Poetry
 
 Poetry is a dependency management and packaging tool for Python.
 
-#### Windows (PowerShell)
+**Note**: Make sure your virtual environment is activated before installing Poetry.
 
-```powershell
-(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | python -
-```
-
-After installation, add Poetry to your PATH if not automatically added:
-- The installer will show the path to add (typically `%APPDATA%\Python\Scripts`)
-
-#### macOS/Linux
+#### All Platforms (Windows/macOS/Linux)
 
 ```bash
-curl -sSL https://install.python-poetry.org | python3 -
+pip install poetry
 ```
 
 #### Verify Poetry Installation
 
-```powershell
+```bash
 poetry --version
 ```
 
 #### Configure Poetry (Optional)
 
 To create virtual environments inside the project directory:
-```powershell
+```bash
 poetry config virtualenvs.in-project true
 ```
 
