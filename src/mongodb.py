@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
 from dotenv import load_dotenv
-from .models import User, Collection as CollectionModel, ReviewState, Review
+from src.models import User, Collection as CollectionModel, ReviewState, Review
 
 load_dotenv()
 
