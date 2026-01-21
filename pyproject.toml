@@ -1,6 +1,10 @@
 [tool.poetry]
 package-mode = false
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.0.2"
+httpx = "^0.28.1"
+
 [project]
 name = "nexus-integration"
 version = "0.1.0"
