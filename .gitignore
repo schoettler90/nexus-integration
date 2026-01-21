@@ -6,3 +6,5 @@ poetry.lock
 # everything in .opencode
 .opencode
 *.opencode
+
+*.pyc
