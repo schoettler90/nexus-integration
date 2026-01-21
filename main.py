@@ -206,7 +206,7 @@ async def create_review(review: Review):
 
 
 @app.get("/reviews/{review_id}", response_model=Review, tags=["Reviews"])
-async def get_review(review_id: int):
+async def get_review(review_id: str):
     """Get a review by ID."""
     review = db.get_review(review_id)
     if not review:
@@ -215,7 +215,7 @@ async def get_review(review_id: int):
 
 
 @app.put("/reviews/{review_id}", response_model=dict, tags=["Reviews"])
-async def update_review(review_id: int, review: Review):
+async def update_review(review_id: str, review: Review):
     """Update an existing review."""
     success = db.update_review(review_id, review)
     if not success:
@@ -224,7 +224,7 @@ async def update_review(review_id: int, review: Review):
 
 
 @app.delete("/reviews/{review_id}", response_model=dict, tags=["Reviews"])
-async def delete_review(review_id: int):
+async def delete_review(review_id: str):
     """Delete a review by ID."""
     success = db.delete_review(review_id)
     if not success:
@@ -243,7 +243,7 @@ async def list_reviews():
 
 
 @app.get("/reviews/user/{user_id}", response_model=List[Review], tags=["Reviews"])
-async def get_reviews_by_user(user_id: int):
+async def get_reviews_by_user(user_id: str):
     """Get all reviews for a specific user."""
     try:
         reviews = db.get_reviews_by_user(user_id)
@@ -253,7 +253,7 @@ async def get_reviews_by_user(user_id: int):
 
 
 @app.post("/reviews/{review_id}/collections/{collection_id}", response_model=dict, tags=["Reviews"])
-async def add_collection_to_review(review_id: int, collection_id: str):
+async def add_collection_to_review(review_id: str, collection_id: str):
     """Add a collection ID to a review."""
     success = db.add_collection_to_review(review_id, collection_id)
     if not success:
@@ -262,7 +262,7 @@ async def add_collection_to_review(review_id: int, collection_id: str):
 
 
 @app.delete("/reviews/{review_id}/collections/{collection_id}", response_model=dict, tags=["Reviews"])
-async def remove_collection_from_review(review_id: int, collection_id: str):
+async def remove_collection_from_review(review_id: str, collection_id: str):
     """Remove a collection ID from a review."""
     success = db.remove_collection_from_review(review_id, collection_id)
     if not success:
@@ -271,7 +271,7 @@ async def remove_collection_from_review(review_id: int, collection_id: str):
 
 
 @app.post("/reviews/{review_id}/review-states", response_model=dict, tags=["Reviews"])
-async def add_review_state_to_review(review_id: int, review_state: ReviewState):
+async def add_review_state_to_review(review_id: str, review_state: ReviewState):
     """Add a review state to a review's review_states list."""
     success = db.add_review_state_to_review(review_id, review_state)
     if not success:
@@ -299,4 +299,3 @@ async def health_check():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"status": "unhealthy", "database": "disconnected", "error": str(e)}
         )
-

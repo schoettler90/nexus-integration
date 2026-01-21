@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
 from dotenv import load_dotenv
-from src.models import User, Collection as CollectionModel, ReviewState, Review
+from src.models import User, Collection as CollectionModel, ReviewState, Review, PromptState
 
 load_dotenv()
 
@@ -306,7 +306,7 @@ class MongoDB:
         result = self.reviews_collection.insert_one(review_dict)
         return str(result.inserted_id)
 
-    def get_review(self, review_id: int) -> Optional[Review]:
+    def get_review(self, review_id: str) -> Optional[Review]:
         """
         Get a review by ID.
 
@@ -322,7 +322,7 @@ class MongoDB:
             return Review(**review_dict)
         return None
 
-    def update_review(self, review_id: int, review: Review) -> bool:
+    def update_review(self, review_id: str, review: Review) -> bool:
         """
         Update an existing review.
 
@@ -340,7 +340,7 @@ class MongoDB:
         )
         return result.modified_count > 0
 
-    def delete_review(self, review_id: int) -> bool:
+    def delete_review(self, review_id: str) -> bool:
         """
         Delete a review by ID.
 
@@ -366,7 +366,7 @@ class MongoDB:
             reviews.append(Review(**review_dict))
         return reviews
 
-    def get_reviews_by_user(self, user_id: int) -> List[Review]:
+    def get_reviews_by_user(self, user_id: str) -> List[Review]:
         """
         Get all reviews for a specific user.
 
@@ -382,7 +382,7 @@ class MongoDB:
             reviews.append(Review(**review_dict))
         return reviews
 
-    def add_collection_to_review(self, review_id: int, collection_id: str) -> bool:
+    def add_collection_to_review(self, review_id: str, collection_id: str) -> bool:
         """
         Add a collection ID to a review's collection_ids list.
 
@@ -399,7 +399,7 @@ class MongoDB:
         )
         return result.modified_count > 0
 
-    def remove_collection_from_review(self, review_id: int, collection_id: str) -> bool:
+    def remove_collection_from_review(self, review_id: str, collection_id: str) -> bool:
         """
         Remove a collection ID from a review's collection_ids list.
 
@@ -416,7 +416,7 @@ class MongoDB:
         )
         return result.modified_count > 0
 
-    def add_review_state_to_review(self, review_id: int, review_state: ReviewState) -> bool:
+    def add_review_state_to_review(self, review_id: str, review_state: ReviewState) -> bool:
         """
         Add a review state to a review's review_states list.
 
