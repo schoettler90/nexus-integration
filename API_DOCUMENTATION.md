@@ -11,6 +11,7 @@ This FastAPI application provides a complete REST API for managing users, collec
 1. **Models** (`src/models.py`): Pydantic models for data validation
    - User
    - Collection
+   - PromptState
    - ReviewState
    - Review
 
@@ -29,7 +30,7 @@ This FastAPI application provides a complete REST API for managing users, collec
 
 | Method | Endpoint | Description | Request Body | Response |
 |--------|----------|-------------|--------------|----------|
-| POST | `/users` | Create a new user | `{"id": "string", "name": "string"}` | `{"message": "string", "id": "string"}` |
+| POST | `/users` | Create a new user | `User` | `{"message": "string", "id": "string"}` |
 | GET | `/users` | List all users | - | `[User]` |
 | GET | `/users/{user_id}` | Get a specific user | - | `User` |
 | PUT | `/users/{user_id}` | Update a user | `User` | `{"message": "string"}` |
@@ -39,7 +40,7 @@ This FastAPI application provides a complete REST API for managing users, collec
 
 | Method | Endpoint | Description | Request Body | Response |
 |--------|----------|-------------|--------------|----------|
-| POST | `/collections` | Create a new collection | `{"id": "string", "collection_name": "string", "document_ids": []}` | `{"message": "string", "id": "string"}` |
+| POST | `/collections` | Create a new collection | `Collection` | `{"message": "string", "id": "string"}` |
 | GET | `/collections` | List all collections | - | `[Collection]` |
 | GET | `/collections/{collection_id}` | Get a specific collection | - | `Collection` |
 | PUT | `/collections/{collection_id}` | Update a collection | `Collection` | `{"message": "string"}` |
@@ -84,7 +85,8 @@ This FastAPI application provides a complete REST API for managing users, collec
 ```json
 {
   "id": "string",
-  "name": "string"
+  "name": "string",
+  "review_ids": ["string"]
 }
 ```
 
@@ -97,12 +99,24 @@ This FastAPI application provides a complete REST API for managing users, collec
 }
 ```
 
+### PromptState
+```json
+{
+  "user_prompt": "string",
+  "review_columns": {}
+}
+```
+
 ### ReviewState
 ```json
 {
   "review_id": "string",
   "date_created": 0,
   "date_modified": 0,
+  "prompt_state": {
+    "user_prompt": "string",
+    "review_columns": {}
+  },
   "reviews": [{}],
   "reviewed_ids": ["string"]
 }
@@ -111,11 +125,26 @@ This FastAPI application provides a complete REST API for managing users, collec
 ### Review
 ```json
 {
-  "id": 0,
-  "user_id": 0,
+  "id": "string",
+  "user_id": "string",
   "collection_ids": ["string"],
-  "state": ReviewState,
-  "review_states": [ReviewState]
+  "prompt_state": {
+    "user_prompt": "string",
+    "review_columns": {}
+  },
+  "review_states": [
+    {
+      "review_id": "string",
+      "date_created": 0,
+      "date_modified": 0,
+      "prompt_state": {
+        "user_prompt": "string",
+        "review_columns": {}
+      },
+      "reviews": [{}],
+      "reviewed_ids": ["string"]
+    }
+  ]
 }
 ```
 
@@ -148,14 +177,14 @@ All MongoDB CRUD operations are available in the `MongoDB` class:
 
 ### Review Operations
 - `create_review(review: Review) -> str`
-- `get_review(review_id: int) -> Optional[Review]`
-- `update_review(review_id: int, review: Review) -> bool`
-- `delete_review(review_id: int) -> bool`
+- `get_review(review_id: str) -> Optional[Review]`
+- `update_review(review_id: str, review: Review) -> bool`
+- `delete_review(review_id: str) -> bool`
 - `list_reviews() -> List[Review]`
-- `get_reviews_by_user(user_id: int) -> List[Review]`
-- `add_collection_to_review(review_id: int, collection_id: str) -> bool`
-- `remove_collection_from_review(review_id: int, collection_id: str) -> bool`
-- `add_review_state_to_review(review_id: int, review_state: ReviewState) -> bool`
+- `get_reviews_by_user(user_id: str) -> List[Review]`
+- `add_collection_to_review(review_id: str, collection_id: str) -> bool`
+- `remove_collection_from_review(review_id: str, collection_id: str) -> bool`
+- `add_review_state_to_review(review_id: str, review_state: ReviewState) -> bool`
 
 ## Error Handling
 
@@ -190,7 +219,11 @@ The API uses standard HTTP status codes:
 ```bash
 curl -X POST "http://localhost:8000/users" \
   -H "Content-Type: application/json" \
-  -d '{"id": "user123", "name": "John Doe"}'
+  -d '{
+    "id": "user123",
+    "name": "John Doe",
+    "review_ids": []
+  }'
 ```
 
 ### Get All Users
@@ -222,6 +255,10 @@ curl -X POST "http://localhost:8000/review-states" \
     "review_id": "review123",
     "date_created": 1737360000,
     "date_modified": 1737360000,
+    "prompt_state": {
+      "user_prompt": "Analyze this",
+      "review_columns": {}
+    },
     "reviews": [],
     "reviewed_ids": []
   }'
@@ -232,15 +269,12 @@ curl -X POST "http://localhost:8000/review-states" \
 curl -X POST "http://localhost:8000/reviews" \
   -H "Content-Type: application/json" \
   -d '{
-    "id": 1,
-    "user_id": 123,
+    "id": "review101",
+    "user_id": "user123",
     "collection_ids": ["col123"],
-    "state": {
-      "review_id": "review123",
-      "date_created": 1737360000,
-      "date_modified": 1737360000,
-      "reviews": [],
-      "reviewed_ids": []
+    "prompt_state": {
+      "user_prompt": "Initial prompt",
+      "review_columns": {}
     },
     "review_states": []
   }'
@@ -248,18 +282,5 @@ curl -X POST "http://localhost:8000/reviews" \
 
 ### Get Reviews by User
 ```bash
-curl -X GET "http://localhost:8000/reviews/user/123"
+curl -X GET "http://localhost:8000/reviews/user/user123"
 ```
-
-## Features
-
-✅ Complete CRUD operations for all models
-✅ RESTful API design
-✅ Automatic request/response validation using Pydantic
-✅ Interactive API documentation (Swagger UI and ReDoc)
-✅ MongoDB connection lifecycle management
-✅ Comprehensive error handling
-✅ Health check endpoints
-✅ Type hints throughout the codebase
-✅ Modular architecture with separation of concerns
-
