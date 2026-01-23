@@ -60,6 +60,22 @@ class MongoDB:
             return User(**user_dict)
         return None
 
+    def get_user_by_email(self, email: str) -> Optional[User]:
+        """
+        Get a user by email.
+
+        Args:
+            email: The email of the user
+
+        Returns:
+            User object if found, None otherwise
+        """
+        user_dict = self.users_collection.find_one({"email": email})
+        if user_dict:
+            user_dict.pop("_id", None)
+            return User(**user_dict)
+        return None
+
     def update_user(self, user_id: str, user: User) -> bool:
         """
         Update an existing user.
@@ -167,15 +183,22 @@ class MongoDB:
         result = self.collections_collection.delete_one({"id": collection_id})
         return result.deleted_count > 0
 
-    def list_collections(self) -> List[CollectionModel]:
+    def list_collections(self, user_id: Optional[str] = None) -> List[CollectionModel]:
         """
         Get all collections from the database.
+        
+        Args:
+            user_id: Optional user_id to filter by.
 
         Returns:
             List of Collection objects
         """
         collections = []
-        for collection_dict in self.collections_collection.find():
+        query = {}
+        if user_id:
+            query["user_id"] = user_id
+            
+        for collection_dict in self.collections_collection.find(query):
             collection_dict.pop("_id", None)
             collections.append(CollectionModel(**collection_dict))
         return collections

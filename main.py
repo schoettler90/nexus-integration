@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from typing import List, Optional
 from contextlib import asynccontextmanager
 
@@ -27,6 +28,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for prototype
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # ==================== User Endpoints ====================
 
@@ -38,6 +49,21 @@ async def create_user(user: User):
         return {"message": "User created successfully", "id": user_id}
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+@app.post("/login", response_model=dict, tags=["Users"])
+async def login(login_request: LoginRequest):
+    """Authenticate a user."""
+    user = db.get_user_by_email(login_request.email)
+    if not user or user.password != login_request.password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    
+    return {"message": "Login successful", "user_id": user.id, "name": user.name}
 
 
 @app.get("/users/{user_id}", response_model=User, tags=["Users"])
@@ -116,11 +142,20 @@ async def delete_collection(collection_id: str):
     return {"message": "Collection deleted successfully"}
 
 
+@app.post("/collections/{collection_id}/documents/{document_id}", response_model=dict, tags=["Collections"])
+async def add_document_to_collection(collection_id: str, document_id: str):
+    """Add a document to a collection."""
+    success = db.add_document_to_collection(collection_id, document_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
+    return {"message": "Document added to collection successfully"}
+
+
 @app.get("/collections", response_model=List[Collection], tags=["Collections"])
-async def list_collections():
-    """Get all collections."""
+async def list_collections(user_id: Optional[str] = None):
+    """Get all collections, optionally filtered by user_id."""
     try:
-        collections = db.list_collections()
+        collections = db.list_collections(user_id)
         return collections
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -299,3 +334,8 @@ async def health_check():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"status": "unhealthy", "database": "disconnected", "error": str(e)}
         )
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8001)
