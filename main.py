@@ -5,7 +5,7 @@ from typing import List, Optional
 from contextlib import asynccontextmanager
 
 from src.mongodb import MongoDB
-from src.models import User, Collection, ReviewState, Review
+from src.models import User, Collection, Review, ReviewRun
 
 
 # MongoDB instance
@@ -161,6 +161,51 @@ async def list_collections(user_id: Optional[str] = None):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
+# ==================== Review Endpoints ====================
+
+@app.post("/reviews", response_model=dict, status_code=status.HTTP_201_CREATED, tags=["Reviews"])
+async def create_review(review: Review):
+    """Create a new review."""
+    try:
+        review_id = db.create_review(review)
+        return {"message": "Review created successfully", "id": review_id}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+@app.get("/reviews/{review_id}", response_model=Review, tags=["Reviews"])
+async def get_review(review_id: str):
+    """Get a review by ID."""
+    review = db.get_review(review_id)
+    if not review:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
+    return review
+
+@app.get("/reviews", response_model=List[Review], tags=["Reviews"])
+async def list_reviews(user_id: Optional[str] = None):
+    """Get all reviews, optionally filtered by user_id."""
+    try:
+        reviews = db.list_reviews(user_id)
+        return reviews
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+@app.put("/reviews/{review_id}", response_model=dict, tags=["Reviews"])
+async def update_review(review_id: str, review: Review):
+    """Update an existing review."""
+    success = db.update_review(review_id, review)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found or no changes made")
+    return {"message": "Review updated successfully"}
+
+@app.delete("/reviews/{review_id}", response_model=dict, tags=["Reviews"])
+async def delete_review(review_id: str):
+    """Delete a review by ID."""
+    success = db.delete_review(review_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
+    return {"message": "Review deleted successfully"}
+
+
 @app.post("/collections/{collection_id}/documents/{document_id}", response_model=dict, tags=["Collections"])
 async def add_document_to_collection(collection_id: str, document_id: str):
     """Add a document ID to a collection."""
@@ -179,53 +224,7 @@ async def remove_document_from_collection(collection_id: str, document_id: str):
     return {"message": "Document removed from collection successfully"}
 
 
-# ==================== ReviewState Endpoints ====================
 
-@app.post("/review-states", response_model=dict, status_code=status.HTTP_201_CREATED, tags=["Review States"])
-async def create_review_state(review_state: ReviewState):
-    """Create a new review state."""
-    try:
-        review_state_id = db.create_review_state(review_state)
-        return {"message": "Review state created successfully", "id": review_state_id}
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-
-@app.get("/review-states/{review_id}", response_model=ReviewState, tags=["Review States"])
-async def get_review_state(review_id: str):
-    """Get a review state by review ID."""
-    review_state = db.get_review_state(review_id)
-    if not review_state:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review state not found")
-    return review_state
-
-
-@app.put("/review-states/{review_id}", response_model=dict, tags=["Review States"])
-async def update_review_state(review_id: str, review_state: ReviewState):
-    """Update an existing review state."""
-    success = db.update_review_state(review_id, review_state)
-    if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review state not found or no changes made")
-    return {"message": "Review state updated successfully"}
-
-
-@app.delete("/review-states/{review_id}", response_model=dict, tags=["Review States"])
-async def delete_review_state(review_id: str):
-    """Delete a review state by review ID."""
-    success = db.delete_review_state(review_id)
-    if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review state not found")
-    return {"message": "Review state deleted successfully"}
-
-
-@app.get("/review-states", response_model=List[ReviewState], tags=["Review States"])
-async def list_review_states():
-    """Get all review states."""
-    try:
-        review_states = db.list_review_states()
-        return review_states
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # ==================== Review Endpoints ====================
@@ -252,66 +251,23 @@ async def get_review(review_id: str):
 @app.put("/reviews/{review_id}", response_model=dict, tags=["Reviews"])
 async def update_review(review_id: str, review: Review):
     """Update an existing review."""
+    print(f"DEBUG: Received update for {review_id}")
+    print(f"DEBUG: Review data runs count: {len(review.runs)}")
+    
     success = db.update_review(review_id, review)
+    
     if not success:
+        print("DEBUG: Update failed (not found)")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found or no changes made")
+    
+    print("DEBUG: Update successful")
     return {"message": "Review updated successfully"}
 
 
-@app.delete("/reviews/{review_id}", response_model=dict, tags=["Reviews"])
-async def delete_review(review_id: str):
-    """Delete a review by ID."""
-    success = db.delete_review(review_id)
-    if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
-    return {"message": "Review deleted successfully"}
 
 
-@app.get("/reviews", response_model=List[Review], tags=["Reviews"])
-async def list_reviews():
-    """Get all reviews."""
-    try:
-        reviews = db.list_reviews()
-        return reviews
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-@app.get("/reviews/user/{user_id}", response_model=List[Review], tags=["Reviews"])
-async def get_reviews_by_user(user_id: str):
-    """Get all reviews for a specific user."""
-    try:
-        reviews = db.get_reviews_by_user(user_id)
-        return reviews
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-
-@app.post("/reviews/{review_id}/collections/{collection_id}", response_model=dict, tags=["Reviews"])
-async def add_collection_to_review(review_id: str, collection_id: str):
-    """Add a collection ID to a review."""
-    success = db.add_collection_to_review(review_id, collection_id)
-    if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found or collection already exists")
-    return {"message": "Collection added to review successfully"}
-
-
-@app.delete("/reviews/{review_id}/collections/{collection_id}", response_model=dict, tags=["Reviews"])
-async def remove_collection_from_review(review_id: str, collection_id: str):
-    """Remove a collection ID from a review."""
-    success = db.remove_collection_from_review(review_id, collection_id)
-    if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found or collection doesn't exist")
-    return {"message": "Collection removed from review successfully"}
-
-
-@app.post("/reviews/{review_id}/review-states", response_model=dict, tags=["Reviews"])
-async def add_review_state_to_review(review_id: str, review_state: ReviewState):
-    """Add a review state to a review's review_states list."""
-    success = db.add_review_state_to_review(review_id, review_state)
-    if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
-    return {"message": "Review state added to review successfully"}
 
 
 # ==================== Health Check ====================

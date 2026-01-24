@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
 from dotenv import load_dotenv
-from src.models import User, Collection as CollectionModel, ReviewState, Review, PromptState
+from src.models import User, Collection as CollectionModel, Review, ReviewRun
 
 load_dotenv()
 
@@ -22,7 +22,7 @@ class MongoDB:
         self.users_collection: Collection = self.db["users"]
         self.collections_collection: Collection = self.db["collections"]
         self.reviews_collection: Collection = self.db["reviews"]
-        self.review_states_collection: Collection = self.db["review_states"]
+
 
     def close(self):
         """Close the MongoDB connection."""
@@ -203,6 +203,48 @@ class MongoDB:
             collections.append(CollectionModel(**collection_dict))
         return collections
 
+    # ==================== Review CRUD Operations ====================
+
+    def create_review(self, review: Review) -> str:
+        """Create a new review."""
+        review_dict = review.model_dump()
+        result = self.reviews_collection.insert_one(review_dict)
+        return str(result.inserted_id)
+
+    def get_review(self, review_id: str) -> Optional[Review]:
+        """Get a review by ID."""
+        review_dict = self.reviews_collection.find_one({"id": review_id})
+        if review_dict:
+            review_dict.pop("_id", None)
+            return Review(**review_dict)
+        return None
+
+    def list_reviews(self, user_id: Optional[str] = None) -> List[Review]:
+        """List reviews, optionally filtered by user_id."""
+        reviews = []
+        query = {}
+        if user_id:
+            query["user_id"] = user_id
+        
+        for review_dict in self.reviews_collection.find(query):
+            review_dict.pop("_id", None)
+            reviews.append(Review(**review_dict))
+        return reviews
+
+    def update_review(self, review_id: str, review: Review) -> bool:
+        """Update a review."""
+        review_dict = review.model_dump()
+        result = self.reviews_collection.update_one(
+            {"id": review_id},
+            {"$set": review_dict}
+        )
+        return result.matched_count > 0
+
+    def delete_review(self, review_id: str) -> bool:
+        """Delete a review."""
+        result = self.reviews_collection.delete_one({"id": review_id})
+        return result.deleted_count > 0
+
     def add_document_to_collection(self, collection_id: str, document_id: str) -> bool:
         """
         Add a document ID to a collection's document_ids list.
@@ -237,222 +279,7 @@ class MongoDB:
         )
         return result.modified_count > 0
 
-    # ==================== ReviewState CRUD Operations ====================
 
-    def create_review_state(self, review_state: ReviewState) -> str:
-        """
-        Create a new review state in the database.
 
-        Args:
-            review_state: ReviewState object to create
 
-        Returns:
-            str: The ID of the created review state
-        """
-        review_state_dict = review_state.model_dump()
-        result = self.review_states_collection.insert_one(review_state_dict)
-        return str(result.inserted_id)
 
-    def get_review_state(self, review_id: str) -> Optional[ReviewState]:
-        """
-        Get a review state by review ID.
-
-        Args:
-            review_id: The unique identifier for the review
-
-        Returns:
-            ReviewState object if found, None otherwise
-        """
-        review_state_dict = self.review_states_collection.find_one({"review_id": review_id})
-        if review_state_dict:
-            review_state_dict.pop("_id", None)
-            return ReviewState(**review_state_dict)
-        return None
-
-    def update_review_state(self, review_id: str, review_state: ReviewState) -> bool:
-        """
-        Update an existing review state.
-
-        Args:
-            review_id: The unique identifier for the review
-            review_state: Updated ReviewState object
-
-        Returns:
-            bool: True if review state was updated, False otherwise
-        """
-        review_state_dict = review_state.model_dump()
-        result = self.review_states_collection.update_one(
-            {"review_id": review_id},
-            {"$set": review_state_dict}
-        )
-        return result.modified_count > 0
-
-    def delete_review_state(self, review_id: str) -> bool:
-        """
-        Delete a review state by review ID.
-
-        Args:
-            review_id: The unique identifier for the review
-
-        Returns:
-            bool: True if review state was deleted, False otherwise
-        """
-        result = self.review_states_collection.delete_one({"review_id": review_id})
-        return result.deleted_count > 0
-
-    def list_review_states(self) -> List[ReviewState]:
-        """
-        Get all review states from the database.
-
-        Returns:
-            List of ReviewState objects
-        """
-        review_states = []
-        for review_state_dict in self.review_states_collection.find():
-            review_state_dict.pop("_id", None)
-            review_states.append(ReviewState(**review_state_dict))
-        return review_states
-
-    # ==================== Review CRUD Operations ====================
-
-    def create_review(self, review: Review) -> str:
-        """
-        Create a new review in the database.
-
-        Args:
-            review: Review object to create
-
-        Returns:
-            str: The ID of the created review
-        """
-        review_dict = review.model_dump()
-        result = self.reviews_collection.insert_one(review_dict)
-        return str(result.inserted_id)
-
-    def get_review(self, review_id: str) -> Optional[Review]:
-        """
-        Get a review by ID.
-
-        Args:
-            review_id: The unique identifier for the review
-
-        Returns:
-            Review object if found, None otherwise
-        """
-        review_dict = self.reviews_collection.find_one({"id": review_id})
-        if review_dict:
-            review_dict.pop("_id", None)
-            return Review(**review_dict)
-        return None
-
-    def update_review(self, review_id: str, review: Review) -> bool:
-        """
-        Update an existing review.
-
-        Args:
-            review_id: The unique identifier for the review
-            review: Updated Review object
-
-        Returns:
-            bool: True if review was updated, False otherwise
-        """
-        review_dict = review.model_dump()
-        result = self.reviews_collection.update_one(
-            {"id": review_id},
-            {"$set": review_dict}
-        )
-        return result.modified_count > 0
-
-    def delete_review(self, review_id: str) -> bool:
-        """
-        Delete a review by ID.
-
-        Args:
-            review_id: The unique identifier for the review
-
-        Returns:
-            bool: True if review was deleted, False otherwise
-        """
-        result = self.reviews_collection.delete_one({"id": review_id})
-        return result.deleted_count > 0
-
-    def list_reviews(self) -> List[Review]:
-        """
-        Get all reviews from the database.
-
-        Returns:
-            List of Review objects
-        """
-        reviews = []
-        for review_dict in self.reviews_collection.find():
-            review_dict.pop("_id", None)
-            reviews.append(Review(**review_dict))
-        return reviews
-
-    def get_reviews_by_user(self, user_id: str) -> List[Review]:
-        """
-        Get all reviews for a specific user.
-
-        Args:
-            user_id: The unique identifier for the user
-
-        Returns:
-            List of Review objects for the user
-        """
-        reviews = []
-        for review_dict in self.reviews_collection.find({"user_id": user_id}):
-            review_dict.pop("_id", None)
-            reviews.append(Review(**review_dict))
-        return reviews
-
-    def add_collection_to_review(self, review_id: str, collection_id: str) -> bool:
-        """
-        Add a collection ID to a review's collection_ids list.
-
-        Args:
-            review_id: The unique identifier for the review
-            collection_id: The collection ID to add
-
-        Returns:
-            bool: True if collection was added, False otherwise
-        """
-        result = self.reviews_collection.update_one(
-            {"id": review_id},
-            {"$addToSet": {"collection_ids": collection_id}}
-        )
-        return result.modified_count > 0
-
-    def remove_collection_from_review(self, review_id: str, collection_id: str) -> bool:
-        """
-        Remove a collection ID from a review's collection_ids list.
-
-        Args:
-            review_id: The unique identifier for the review
-            collection_id: The collection ID to remove
-
-        Returns:
-            bool: True if collection was removed, False otherwise
-        """
-        result = self.reviews_collection.update_one(
-            {"id": review_id},
-            {"$pull": {"collection_ids": collection_id}}
-        )
-        return result.modified_count > 0
-
-    def add_review_state_to_review(self, review_id: str, review_state: ReviewState) -> bool:
-        """
-        Add a review state to a review's review_states list.
-
-        Args:
-            review_id: The unique identifier for the review
-            review_state: The ReviewState object to add
-
-        Returns:
-            bool: True if review state was added, False otherwise
-        """
-        review_state_dict = review_state.model_dump()
-        result = self.reviews_collection.update_one(
-            {"id": review_id},
-            {"$push": {"review_states": review_state_dict}}
-        )
-        return result.modified_count > 0
