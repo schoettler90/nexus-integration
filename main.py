@@ -151,6 +151,15 @@ async def add_document_to_collection(collection_id: str, document_id: str):
     return {"message": "Document added to collection successfully"}
 
 
+@app.delete("/collections/{collection_id}/documents/{document_id}", response_model=dict, tags=["Collections"])
+async def remove_document_from_collection(collection_id: str, document_id: str):
+    """Remove a document ID from a collection."""
+    success = db.remove_document_from_collection(collection_id, document_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found or document doesn't exist")
+    return {"message": "Document removed from collection successfully"}
+
+
 @app.get("/collections", response_model=List[Collection], tags=["Collections"])
 async def list_collections(user_id: Optional[str] = None):
     """Get all collections, optionally filtered by user_id."""
@@ -204,69 +213,6 @@ async def delete_review(review_id: str):
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
     return {"message": "Review deleted successfully"}
-
-
-@app.post("/collections/{collection_id}/documents/{document_id}", response_model=dict, tags=["Collections"])
-async def add_document_to_collection(collection_id: str, document_id: str):
-    """Add a document ID to a collection."""
-    success = db.add_document_to_collection(collection_id, document_id)
-    if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found or document already exists")
-    return {"message": "Document added to collection successfully"}
-
-
-@app.delete("/collections/{collection_id}/documents/{document_id}", response_model=dict, tags=["Collections"])
-async def remove_document_from_collection(collection_id: str, document_id: str):
-    """Remove a document ID from a collection."""
-    success = db.remove_document_from_collection(collection_id, document_id)
-    if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found or document doesn't exist")
-    return {"message": "Document removed from collection successfully"}
-
-
-
-
-
-# ==================== Review Endpoints ====================
-
-@app.post("/reviews", response_model=dict, status_code=status.HTTP_201_CREATED, tags=["Reviews"])
-async def create_review(review: Review):
-    """Create a new review."""
-    try:
-        review_id = db.create_review(review)
-        return {"message": "Review created successfully", "id": review_id}
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-
-@app.get("/reviews/{review_id}", response_model=Review, tags=["Reviews"])
-async def get_review(review_id: str):
-    """Get a review by ID."""
-    review = db.get_review(review_id)
-    if not review:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
-    return review
-
-
-@app.put("/reviews/{review_id}", response_model=dict, tags=["Reviews"])
-async def update_review(review_id: str, review: Review):
-    """Update an existing review."""
-    print(f"DEBUG: Received update for {review_id}")
-    print(f"DEBUG: Review data runs count: {len(review.runs)}")
-    
-    success = db.update_review(review_id, review)
-    
-    if not success:
-        print("DEBUG: Update failed (not found)")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found or no changes made")
-    
-    print("DEBUG: Update successful")
-    return {"message": "Review updated successfully"}
-
-
-
-
-
 
 
 
