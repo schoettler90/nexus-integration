@@ -2,27 +2,31 @@
 
 ## Overview
 
-This FastAPI application provides a complete REST API for managing users, collections, reviews, and review states with MongoDB as the backend database.
+This FastAPI application provides a REST API for managing users, collections, and
+reviews with MongoDB as the backend database. It listens on port **8001**
+(nexus-backend owns `:8000`).
 
 ## Architecture
 
 ### Components
 
 1. **Models** (`src/models.py`): Pydantic models for data validation
-   - User
-   - Collection
-   - PromptState
-   - ReviewState
-   - Review
+   - `User` (request model; the stored password is a bcrypt hash)
+   - `UserPublic` (response model — never includes `password`)
+   - `Collection`
+   - `Review`
 
-2. **Database Layer** (`src/mongodb.py`): MongoDB CRUD operations
-   - MongoDB class with methods for all database operations
+2. **Security** (`src/security.py`): bcrypt password hashing
+   - `hash_password`, `verify_password`, `is_bcrypt_hash`
+
+3. **Database Layer** (`src/mongodb.py`): MongoDB CRUD operations
+   - `MongoDB` class with methods for all database operations
    - Connection lifecycle management
 
-3. **API Layer** (`main.py`): FastAPI endpoints
-   - RESTful API endpoints for all operations
-   - Request/response validation
-   - Error handling
+4. **API Layer** (`main.py` + `src/routers/`): FastAPI endpoints
+   - `main.py` — app wiring, CORS, lifespan, `/` and `/health`
+   - `src/routers/users.py`, `src/routers/collections.py`,
+     `src/routers/reviews.py` — the resource endpoints
 
 ## API Endpoints
 
@@ -30,10 +34,11 @@ This FastAPI application provides a complete REST API for managing users, collec
 
 | Method | Endpoint | Description | Request Body | Response |
 |--------|----------|-------------|--------------|----------|
-| POST | `/users` | Create a new user | `User` | `{"message": "string", "id": "string"}` |
-| GET | `/users` | List all users | - | `[User]` |
-| GET | `/users/{user_id}` | Get a specific user | - | `User` |
-| PUT | `/users/{user_id}` | Update a user | `User` | `{"message": "string"}` |
+| POST | `/users` | Create a new user (password bcrypt-hashed) | `User` | `{"message": "string", "id": "string"}` |
+| POST | `/login` | Authenticate a user | `{"email": "string", "password": "string"}` | `{"message": "string", "user_id": "string", "name": "string"}` (401 on bad credentials) |
+| GET | `/users` | List all users | - | `[UserPublic]` |
+| GET | `/users/{user_id}` | Get a specific user | - | `UserPublic` |
+| PUT | `/users/{user_id}` | Update a user (a new plaintext password is hashed) | `User` | `{"message": "string"}` |
 | DELETE | `/users/{user_id}` | Delete a user | - | `{"message": "string"}` |
 
 ### Collections
@@ -41,36 +46,22 @@ This FastAPI application provides a complete REST API for managing users, collec
 | Method | Endpoint | Description | Request Body | Response |
 |--------|----------|-------------|--------------|----------|
 | POST | `/collections` | Create a new collection | `Collection` | `{"message": "string", "id": "string"}` |
-| GET | `/collections` | List all collections | - | `[Collection]` |
+| GET | `/collections` | List all collections (optional `?user_id=`) | - | `[Collection]` |
 | GET | `/collections/{collection_id}` | Get a specific collection | - | `Collection` |
 | PUT | `/collections/{collection_id}` | Update a collection | `Collection` | `{"message": "string"}` |
 | DELETE | `/collections/{collection_id}` | Delete a collection | - | `{"message": "string"}` |
 | POST | `/collections/{collection_id}/documents/{document_id}` | Add document to collection | - | `{"message": "string"}` |
 | DELETE | `/collections/{collection_id}/documents/{document_id}` | Remove document from collection | - | `{"message": "string"}` |
 
-### Review States
-
-| Method | Endpoint | Description | Request Body | Response |
-|--------|----------|-------------|--------------|----------|
-| POST | `/review-states` | Create a new review state | `ReviewState` | `{"message": "string", "id": "string"}` |
-| GET | `/review-states` | List all review states | - | `[ReviewState]` |
-| GET | `/review-states/{review_id}` | Get a specific review state | - | `ReviewState` |
-| PUT | `/review-states/{review_id}` | Update a review state | `ReviewState` | `{"message": "string"}` |
-| DELETE | `/review-states/{review_id}` | Delete a review state | - | `{"message": "string"}` |
-
 ### Reviews
 
 | Method | Endpoint | Description | Request Body | Response |
 |--------|----------|-------------|--------------|----------|
 | POST | `/reviews` | Create a new review | `Review` | `{"message": "string", "id": "string"}` |
-| GET | `/reviews` | List all reviews | - | `[Review]` |
+| GET | `/reviews` | List all reviews (optional `?user_id=`) | - | `[Review]` |
 | GET | `/reviews/{review_id}` | Get a specific review | - | `Review` |
 | PUT | `/reviews/{review_id}` | Update a review | `Review` | `{"message": "string"}` |
 | DELETE | `/reviews/{review_id}` | Delete a review | - | `{"message": "string"}` |
-| GET | `/reviews/user/{user_id}` | Get all reviews by a user | - | `[Review]` |
-| POST | `/reviews/{review_id}/collections/{collection_id}` | Add collection to review | - | `{"message": "string"}` |
-| DELETE | `/reviews/{review_id}/collections/{collection_id}` | Remove collection from review | - | `{"message": "string"}` |
-| POST | `/reviews/{review_id}/review-states` | Add review state to review | `ReviewState` | `{"message": "string"}` |
 
 ### Health Check
 
@@ -81,11 +72,23 @@ This FastAPI application provides a complete REST API for managing users, collec
 
 ## Data Models
 
-### User
+### User (request)
 ```json
 {
   "id": "string",
   "name": "string",
+  "email": "string",
+  "password": "string",
+  "review_ids": ["string"]
+}
+```
+
+### UserPublic (response — no password)
+```json
+{
+  "id": "string",
+  "name": "string",
+  "email": "string",
   "review_ids": ["string"]
 }
 ```
@@ -94,31 +97,9 @@ This FastAPI application provides a complete REST API for managing users, collec
 ```json
 {
   "id": "string",
+  "user_id": "string",
   "collection_name": "string",
   "document_ids": ["string"]
-}
-```
-
-### PromptState
-```json
-{
-  "user_prompt": "string",
-  "review_columns": {}
-}
-```
-
-### ReviewState
-```json
-{
-  "review_id": "string",
-  "date_created": 0,
-  "date_modified": 0,
-  "prompt_state": {
-    "user_prompt": "string",
-    "review_columns": {}
-  },
-  "reviews": [{}],
-  "reviewed_ids": ["string"]
 }
 ```
 
@@ -127,24 +108,13 @@ This FastAPI application provides a complete REST API for managing users, collec
 {
   "id": "string",
   "user_id": "string",
+  "name": "string",
+  "prompt": "string",
   "collection_ids": ["string"],
-  "prompt_state": {
-    "user_prompt": "string",
-    "review_columns": {}
-  },
-  "review_states": [
-    {
-      "review_id": "string",
-      "date_created": 0,
-      "date_modified": 0,
-      "prompt_state": {
-        "user_prompt": "string",
-        "review_columns": {}
-      },
-      "reviews": [{}],
-      "reviewed_ids": ["string"]
-    }
-  ]
+  "fields": [{}],
+  "results": [{}],
+  "runs": [{}],
+  "updated_at": "string"
 }
 ```
 
@@ -155,6 +125,7 @@ All MongoDB CRUD operations are available in the `MongoDB` class:
 ### User Operations
 - `create_user(user: User) -> str`
 - `get_user(user_id: str) -> Optional[User]`
+- `get_user_by_email(email: str) -> Optional[User]`
 - `update_user(user_id: str, user: User) -> bool`
 - `delete_user(user_id: str) -> bool`
 - `list_users() -> List[User]`
@@ -164,27 +135,16 @@ All MongoDB CRUD operations are available in the `MongoDB` class:
 - `get_collection(collection_id: str) -> Optional[Collection]`
 - `update_collection(collection_id: str, collection: Collection) -> bool`
 - `delete_collection(collection_id: str) -> bool`
-- `list_collections() -> List[Collection]`
+- `list_collections(user_id: Optional[str]) -> List[Collection]`
 - `add_document_to_collection(collection_id: str, document_id: str) -> bool`
 - `remove_document_from_collection(collection_id: str, document_id: str) -> bool`
-
-### ReviewState Operations
-- `create_review_state(review_state: ReviewState) -> str`
-- `get_review_state(review_id: str) -> Optional[ReviewState]`
-- `update_review_state(review_id: str, review_state: ReviewState) -> bool`
-- `delete_review_state(review_id: str) -> bool`
-- `list_review_states() -> List[ReviewState]`
 
 ### Review Operations
 - `create_review(review: Review) -> str`
 - `get_review(review_id: str) -> Optional[Review]`
 - `update_review(review_id: str, review: Review) -> bool`
 - `delete_review(review_id: str) -> bool`
-- `list_reviews() -> List[Review]`
-- `get_reviews_by_user(user_id: str) -> List[Review]`
-- `add_collection_to_review(review_id: str, collection_id: str) -> bool`
-- `remove_collection_from_review(review_id: str, collection_id: str) -> bool`
-- `add_review_state_to_review(review_id: str, review_state: ReviewState) -> bool`
+- `list_reviews(user_id: Optional[str]) -> List[Review]`
 
 ## Error Handling
 
@@ -192,6 +152,7 @@ The API uses standard HTTP status codes:
 
 - `200 OK` - Request successful
 - `201 Created` - Resource created successfully
+- `401 Unauthorized` - Invalid login credentials
 - `404 Not Found` - Resource not found
 - `500 Internal Server Error` - Server error
 - `503 Service Unavailable` - Database connection issue
@@ -204,39 +165,59 @@ The API uses standard HTTP status codes:
    DATABASE_NAME=nexus_db
    ```
 
-2. Start the server:
+2. Install dependencies and start the server (port 8001):
    ```bash
-   uvicorn main:app --reload
+   uv sync
+   uv run uvicorn main:app --reload --port 8001
    ```
 
 3. Access the interactive documentation:
-   - Swagger UI: http://localhost:8000/docs
-   - ReDoc: http://localhost:8000/redoc
+   - Swagger UI: http://localhost:8001/docs
+   - ReDoc: http://localhost:8001/redoc
+
+## Scripts
+
+- `scripts/create_user.py` — create a user from the CLI
+  (`uv run python scripts/create_user.py --id u1 --name Jane --email jane@example.com`;
+  prompts for the password and stores its bcrypt hash).
+- `scripts/hash_passwords.py` — one-time migration hashing pre-existing
+  plaintext passwords; idempotent (already-hashed records are skipped).
+- `scripts/verify_user.py` — fetch and print a user record.
 
 ## Example API Calls
 
 ### Create a User
 ```bash
-curl -X POST "http://localhost:8000/users" \
+curl -X POST "http://localhost:8001/users" \
   -H "Content-Type: application/json" \
   -d '{
     "id": "user123",
     "name": "John Doe",
+    "email": "john@example.com",
+    "password": "a-strong-password",
     "review_ids": []
   }'
 ```
 
+### Log In
+```bash
+curl -X POST "http://localhost:8001/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "john@example.com", "password": "a-strong-password"}'
+```
+
 ### Get All Users
 ```bash
-curl -X GET "http://localhost:8000/users"
+curl -X GET "http://localhost:8001/users"
 ```
 
 ### Create a Collection
 ```bash
-curl -X POST "http://localhost:8000/collections" \
+curl -X POST "http://localhost:8001/collections" \
   -H "Content-Type: application/json" \
   -d '{
     "id": "col123",
+    "user_id": "user123",
     "collection_name": "My Collection",
     "document_ids": ["doc1", "doc2"]
   }'
@@ -244,43 +225,23 @@ curl -X POST "http://localhost:8000/collections" \
 
 ### Add Document to Collection
 ```bash
-curl -X POST "http://localhost:8000/collections/col123/documents/doc3"
-```
-
-### Create a Review State
-```bash
-curl -X POST "http://localhost:8000/review-states" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "review_id": "review123",
-    "date_created": 1737360000,
-    "date_modified": 1737360000,
-    "prompt_state": {
-      "user_prompt": "Analyze this",
-      "review_columns": {}
-    },
-    "reviews": [],
-    "reviewed_ids": []
-  }'
+curl -X POST "http://localhost:8001/collections/col123/documents/doc3"
 ```
 
 ### Create a Review
 ```bash
-curl -X POST "http://localhost:8000/reviews" \
+curl -X POST "http://localhost:8001/reviews" \
   -H "Content-Type: application/json" \
   -d '{
     "id": "review101",
     "user_id": "user123",
-    "collection_ids": ["col123"],
-    "prompt_state": {
-      "user_prompt": "Initial prompt",
-      "review_columns": {}
-    },
-    "review_states": []
+    "name": "Initial review",
+    "prompt": "Initial prompt",
+    "collection_ids": ["col123"]
   }'
 ```
 
 ### Get Reviews by User
 ```bash
-curl -X GET "http://localhost:8000/reviews/user/user123"
+curl -X GET "http://localhost:8001/reviews?user_id=user123"
 ```

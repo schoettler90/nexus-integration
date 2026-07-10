@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
 from dotenv import load_dotenv
-from src.models import User, Collection as CollectionModel, Review, ReviewRun
+from src.models import User, Collection as CollectionModel, Review
 
 load_dotenv()
 
@@ -22,7 +22,6 @@ class MongoDB:
         self.users_collection: Collection = self.db["users"]
         self.collections_collection: Collection = self.db["collections"]
         self.reviews_collection: Collection = self.db["reviews"]
-
 
     def close(self):
         """Close the MongoDB connection."""
@@ -88,10 +87,7 @@ class MongoDB:
             bool: True if user was updated, False otherwise
         """
         user_dict = user.model_dump()
-        result = self.users_collection.update_one(
-            {"id": user_id},
-            {"$set": user_dict}
-        )
+        result = self.users_collection.update_one({"id": user_id}, {"$set": user_dict})
         return result.modified_count > 0
 
     def delete_user(self, user_id: str) -> bool:
@@ -152,7 +148,9 @@ class MongoDB:
             return CollectionModel(**collection_dict)
         return None
 
-    def update_collection(self, collection_id: str, collection: CollectionModel) -> bool:
+    def update_collection(
+        self, collection_id: str, collection: CollectionModel
+    ) -> bool:
         """
         Update an existing collection.
 
@@ -165,8 +163,7 @@ class MongoDB:
         """
         collection_dict = collection.model_dump()
         result = self.collections_collection.update_one(
-            {"id": collection_id},
-            {"$set": collection_dict}
+            {"id": collection_id}, {"$set": collection_dict}
         )
         return result.modified_count > 0
 
@@ -186,7 +183,7 @@ class MongoDB:
     def list_collections(self, user_id: Optional[str] = None) -> List[CollectionModel]:
         """
         Get all collections from the database.
-        
+
         Args:
             user_id: Optional user_id to filter by.
 
@@ -197,7 +194,7 @@ class MongoDB:
         query = {}
         if user_id:
             query["user_id"] = user_id
-            
+
         for collection_dict in self.collections_collection.find(query):
             collection_dict.pop("_id", None)
             collections.append(CollectionModel(**collection_dict))
@@ -225,7 +222,7 @@ class MongoDB:
         query = {}
         if user_id:
             query["user_id"] = user_id
-        
+
         for review_dict in self.reviews_collection.find(query):
             review_dict.pop("_id", None)
             reviews.append(Review(**review_dict))
@@ -235,8 +232,7 @@ class MongoDB:
         """Update a review."""
         review_dict = review.model_dump()
         result = self.reviews_collection.update_one(
-            {"id": review_id},
-            {"$set": review_dict}
+            {"id": review_id}, {"$set": review_dict}
         )
         return result.matched_count > 0
 
@@ -257,12 +253,13 @@ class MongoDB:
             bool: True if document was added, False otherwise
         """
         result = self.collections_collection.update_one(
-            {"id": collection_id},
-            {"$addToSet": {"document_ids": document_id}}
+            {"id": collection_id}, {"$addToSet": {"document_ids": document_id}}
         )
         return result.modified_count > 0
 
-    def remove_document_from_collection(self, collection_id: str, document_id: str) -> bool:
+    def remove_document_from_collection(
+        self, collection_id: str, document_id: str
+    ) -> bool:
         """
         Remove a document ID from a collection's document_ids list.
 
@@ -274,12 +271,6 @@ class MongoDB:
             bool: True if document was removed, False otherwise
         """
         result = self.collections_collection.update_one(
-            {"id": collection_id},
-            {"$pull": {"document_ids": document_id}}
+            {"id": collection_id}, {"$pull": {"document_ids": document_id}}
         )
         return result.modified_count > 0
-
-
-
-
-
