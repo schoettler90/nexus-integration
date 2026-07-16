@@ -1,4 +1,3 @@
-
 import sys
 import os
 
@@ -6,6 +5,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.mongodb import MongoDB
+
 
 def verify_user():
     db = MongoDB()
@@ -20,6 +20,7 @@ def verify_user():
         print(f"Error verifying user: {e}")
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     verify_user()
